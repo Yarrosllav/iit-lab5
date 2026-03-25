@@ -9,7 +9,6 @@ terraform {
 
 provider "aws" {
   region     = "eu-north-1" 
-  
 }
 
 resource "aws_security_group" "web_sg" {
@@ -60,11 +59,29 @@ resource "aws_instance" "web_server" {
   user_data = <<-EOF
               #!/bin/bash
               apt-get update
-              apt-get install -y docker.io
+              apt-get install -y docker.io docker-compose
               systemctl start docker
               systemctl enable docker
-              docker run -d -p 80:80 --name my-website yarrosllav/lab5-app:latest
-              docker run -d --name watchtower -v /var/run/docker.sock:/var/run/docker.sock containrrr/watchtower --interval 30
+
+              cat <<EOT > /home/ubuntu/docker-compose.yml
+              version: '3.8'
+              services:
+                web:
+                  image: yarrosllav/lab5-app:latest
+                  ports:
+                    - "80:80"
+                  restart: always
+
+                watchtower:
+                  image: containrrr/watchtower
+                  volumes:
+                    - /var/run/docker.sock:/var/run/docker.sock
+                  command: --interval 30
+                  restart: always
+              EOT
+
+              cd /home/ubuntu
+              docker-compose up -d
               EOF
 
   tags = {
